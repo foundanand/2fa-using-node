@@ -1,0 +1,17 @@
+{
+  "name": "2fa",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.19.2",
+    "hi-base32": "^0.5.1",
+    "otpauth": "^9.3.1"
+  }
+}
