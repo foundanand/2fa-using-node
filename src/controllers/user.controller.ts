@@ -59,10 +59,69 @@ export const LoginUser = async (req: Request, res: Response) => {
     }
 }
 
+// Generate BASE32 secret key
+const generateBase32Secret = () => {
+    const buffer = crypto.randomBytes(15);
+    return encode(buffer).replace(/=/g, "").substring(0, 24);
+}
 
-// Enable 2fa
 
+//Enable 2FA
+export const enable2FA = async (req: Request, res: Response) => {
+    const userId = req.body.userId || req.params.userId || req.query.userId;
 
+    if(!await User.findOne({_id: userId})) {
+        return res.status(404).json({ status: "false", message: "User does not exist"})
+    }
+    // Generate secret key for the user
+    const base32_secret: string = generateBase32Secret();
 
+    // Store secret key in User object
+    await User.updateOne({_id: userId}, {secrets2fa: base32_secret});
 
+    //Generate TOTP auth url
+    let totp = new OTPAuth.TOTP({
+        issuer: "2FA Server",
+        label: "user.userEmail",
+        algorithm: "SHA1",
+        digits: 6,
+        secret: base32_secret
+    });
+    const otpauth_url: string = totp.toString();
 
+    QRCode.toDataURL(otpauth_url, (error: Error | null | undefined, qrUrl: string) => {
+        if(error) {
+            console.log(error);
+            return res.status(500).json({ status: 'false', message: "Error while generating QR Code"})
+        }
+        res.status(200).json({ status: true, qrCodeUrl: qrUrl, secret: base32_secret });
+    })
+}
+
+// Validate 2FA
+export const verify2FA = async (req: Request, res: Response) => {
+    const { userId, token } = req.body;
+    const user = await User.findOne({_id: userId});
+    if(!user) {
+        return res.status(404).json({status: "false", message: "User does not exist" })
+    }
+    // verify the token
+    const totp = new OTPAuth.TOTP({
+        issuer: "2FA Server",
+        label: user.userEmail,
+        algorithm: "SHA1",
+        digits: 6,
+        secret: user.secrets2fa!
+    });
+    const isValid = totp.validate({token});
+
+    if(isValid === null) {
+        return res.status(401).json({ status: "false", message: "Invalid token"})
+    }
+    // update the  user status
+    if(!user.enable2fa) {
+        await User.updateOne({_id: userId}, {enable2fa: true});
+    }
+
+        res.status(200).json({ status: true, message: "Token is valid" });
+}
