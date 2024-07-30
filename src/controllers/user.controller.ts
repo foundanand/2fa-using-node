@@ -111,7 +111,7 @@ export const verify2FA = async (req: Request, res: Response) => {
         label: user.userEmail,
         algorithm: "SHA1",
         digits: 6,
-        secret: user.secrets2fa!
+        secret: user.secrets2fa
     });
     const isValid = totp.validate({token});
 
